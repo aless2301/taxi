@@ -14,19 +14,22 @@ defmodule TaxiBeWeb.TaxiAllocationJob do
     Process.sleep(1000)
 
     task = Task.async( fn -> candidate_taxis() end)
+    customer_username = state.request["username"]
+
     # Computation of fare
-    TaxiBeWeb.Endpoint.broadcast("customer:luciano", "booking_request", %{msg: "Your ride is worth 80 pesitos"})
+    TaxiBeWeb.Endpoint.broadcast("customer:"<>customer_username, "booking_request", %{msg: "Your ride is worth 80 pesitos"})
 
     taxis = Task.await(task)
 
     {taxi, others, timer} = part2(state |> Map.put(:taxis, taxis |> Enum.shuffle))
-    {:noreply, state |> Map.put(:contacted_taxi, taxi) |> Map.put(:others, others) |> Map.put(:timer, timer)}
+    {:noreply, state |> Map.put(:contacted_taxi, taxi) |> Map.put(:taxis, others) |> Map.put(:timer, timer)}
   end
 
   def handle_info(:timeout, state) do
-
     IO.puts("Boom !!!")
-    {:noreply, state}
+    IO.inspect(state)
+    {taxi, others, timer} = part2(state)
+    {:noreply, state |> Map.put(:contacted_taxi, taxi) |> Map.put(:taxis, others) |> Map.put(:timer, timer)}
   end
 
   def part2(state) do
@@ -53,7 +56,7 @@ defmodule TaxiBeWeb.TaxiAllocationJob do
   end
 
 
-  def handle_cast({:driver_accepted, driver_username}, state) do
+  def handle_cast({:process_accept, driver_username}, state) do
     #IO.inspect(request)
     #IO.inspect(state)}
     customer_username = state.request["username"]
