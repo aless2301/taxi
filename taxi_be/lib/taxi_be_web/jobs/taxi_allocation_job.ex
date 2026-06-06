@@ -62,11 +62,26 @@ defmodule TaxiBeWeb.TaxiAllocationJob do
          msg: "Viaje de '#{pickup_address}' a '#{dropoff_address}'",
          bookingId: booking_id
         })
-    timer = Process.send_after(self(), :timeout, 1000)
+    timer = Process.send_after(self(), :timeout, 2000)
 
     {taxi, others, timer}
   end
 
+
+  def handle_cast({:process_reject, _driver_username}, state) do
+    %{timer: timer} = state
+
+    if timer != nil do
+      Process.cancel_timer(timer)
+    end
+
+    case part2(state) do
+      :no_drivers ->
+        {:stop, :normal, state}
+      {taxi, others, new_timer} ->
+        {:noreply, state |> Map.put(:contacted_taxi, taxi) |> Map.put(:taxis, others) |> Map.put(:timer, new_timer)}
+    end
+  end
 
   def handle_cast({:process_accept, driver_username}, state) do
     #IO.inspect(request)
