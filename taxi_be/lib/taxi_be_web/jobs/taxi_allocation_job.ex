@@ -26,10 +26,22 @@ defmodule TaxiBeWeb.TaxiAllocationJob do
   end
 
   def handle_info(:timeout, state) do
-    IO.puts("Boom !!!")
-    IO.inspect(state)
-    {taxi, others, timer} = part2(state)
-    {:noreply, state |> Map.put(:contacted_taxi, taxi) |> Map.put(:taxis, others) |> Map.put(:timer, timer)}
+    case part2(state) do
+      :no_drivers ->
+        {:stop, :normal, state}
+      {taxi, others, timer} ->
+        {:noreply, state |> Map.put(:contacted_taxi, taxi) |> Map.put(:taxis, others) |> Map.put(:timer, timer)}
+    end
+  end
+
+  def part2(%{taxis: []} = state) do
+    customer_username = state.request["username"]
+    TaxiBeWeb.Endpoint.broadcast(
+      "customer:" <> customer_username,
+      "booking_request",
+      %{msg: "We are sorry, no driver is available right now. Please try again later."}
+    )
+    :no_drivers
   end
 
   def part2(state) do
