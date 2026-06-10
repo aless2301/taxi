@@ -7,47 +7,43 @@ defmodule TaxiBeWeb.TaxiAllocationJob do
 
   def init(request) do
     Process.send(self(), :part1, [:nosuspend])
-    {:ok, %{request: request, timer: nil}}
+    {:ok, %{request: request, timer: nil, accepted: false}}
   end
 
   def handle_info(:part1,  %{request: request} = state) do
     Process.sleep(1000)
 
     task = Task.async( fn -> candidate_taxis() end)
+
     customer_username = state.request["username"]
 
     # Computation of fare
-    TaxiBeWeb.Endpoint.broadcast("customer:"<>customer_username, "booking_request", %{msg: "Your ride is worth 80 pesitos"})
-
+    #TaxiBeWeb.Endpoint.broadcast("customer:"<>customer_username, "booking_request", %{msg: "Your ride is worth 80 pesitos"})
+    # línea 20 — reemplazar el broadcast hardcodeado por:
+    request |> compute_ride_fare() |> notify_customer_ride_fare()
     taxis = Task.await(task)
 
-    {taxi, others, timer} = part2(state |> Map.put(:taxis, taxis |> Enum.shuffle))
-    {:noreply, state |> Map.put(:contacted_taxi, taxi) |> Map.put(:taxis, others) |> Map.put(:timer, timer)}
+    candidates = Enum.take(Enum.shuffle(taxis),3)
+    new_state = state |> Map.put(:taxis, candidates) |> Map.put(:accepted, false)
+    timer = part2(new_state)
+
+    #{taxi, others, timer} = part2(state |> Map.put(:taxis, taxis |> Enum.shuffle))
+    {:noreply, new_state |> Map.put(:timer, timer)}
   end
 
   def handle_info(:timeout, state) do
-    case part2(state) do
-      :no_drivers ->
-        {:stop, :normal, state}
-      {taxi, others, timer} ->
-        {:noreply, state |> Map.put(:contacted_taxi, taxi) |> Map.put(:taxis, others) |> Map.put(:timer, timer)}
-    end
-  end
-
-  def part2(%{taxis: []} = state) do
     customer_username = state.request["username"]
     TaxiBeWeb.Endpoint.broadcast(
       "customer:" <> customer_username,
       "booking_request",
       %{msg: "We are sorry, no driver is available right now. Please try again later."}
     )
-    :no_drivers
+    {:stop, :normal, state}
   end
+
 
   def part2(state) do
     %{taxis: taxis, request: request} = state
-
-    [taxi | others] = taxis
 
     # Forward request to taxi driver
     %{
@@ -55,49 +51,43 @@ defmodule TaxiBeWeb.TaxiAllocationJob do
       "dropoff_address" => dropoff_address,
       "booking_id" => booking_id
     } = request
-    TaxiBeWeb.Endpoint.broadcast(
-      "driver:" <> taxi.nickname,
-      "booking_request",
-       %{
-         msg: "Viaje de '#{pickup_address}' a '#{dropoff_address}'",
-         bookingId: booking_id
-        })
-    timer = Process.send_after(self(), :timeout, 2000)
 
-    {taxi, others, timer}
+    Enum.each(taxis, fn taxi ->
+      TaxiBeWeb.Endpoint.broadcast(
+        "driver:" <> taxi.nickname,
+        "booking_request",
+        %{
+          msg: "Viaje de '#{pickup_address}' a '#{dropoff_address}'",
+          bookingId: booking_id
+          })
+    end )
+    Process.send_after(self(), :timeout, 10000) #change after tests to 9000
+
   end
 
 
   def handle_cast({:process_reject, _driver_username}, state) do
-    %{timer: timer} = state
-
-    if timer != nil do
-      Process.cancel_timer(timer)
-    end
-
-    case part2(state) do
-      :no_drivers ->
-        {:stop, :normal, state}
-      {taxi, others, new_timer} ->
-        {:noreply, state |> Map.put(:contacted_taxi, taxi) |> Map.put(:taxis, others) |> Map.put(:timer, new_timer)}
-    end
+    {:noreply, state}
   end
 
-  def handle_cast({:process_accept, driver_username}, state) do
+  def handle_cast({:process_accept, _driver_username}, state) do
     #IO.inspect(request)
     #IO.inspect(state)}
     customer_username = state.request["username"]
 
+    if state.accepted do
+      {:noreply, state}
+    else
 
-    %{timer: timer} = state
+      %{timer: timer} = state
 
-    if timer != nil do
-      Process.cancel_timer(timer)
+      if timer != nil do
+        Process.cancel_timer(timer)
+      end
+
+      TaxiBeWeb.Endpoint.broadcast("customer:"<>customer_username, "booking_request", %{msg: "Tu taxi llegará en  5 min"})
+      {:noreply, state |> Map.put(:accepted, true)}
     end
-
-    TaxiBeWeb.Endpoint.broadcast("customer:"<>customer_username, "booking_request", %{msg: "Tu taxi llegará en  5 min"})
-    {:noreply, state}
-
   end
 
   def compute_ride_fare(request) do
