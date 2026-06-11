@@ -61,7 +61,7 @@ defmodule TaxiBeWeb.TaxiAllocationJob do
           bookingId: booking_id
           })
     end )
-    Process.send_after(self(), :timeout, 10000) #change after tests to 9000
+    Process.send_after(self(), :timeout, 90000) #change after tests to 9000
 
   end
 
