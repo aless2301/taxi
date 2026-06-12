@@ -45,7 +45,7 @@ defmodule TaxiBeWeb.TaxiAllocationJob do
   def part2(state) do
     %{taxis: taxis, request: request} = state
 
-    # Forward request to taxi driver
+    # Forward request to taxi drivers
     %{
       "pickup_address" => pickup_address,
       "dropoff_address" => dropoff_address,
