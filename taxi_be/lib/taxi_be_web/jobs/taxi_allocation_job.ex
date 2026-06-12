@@ -7,7 +7,7 @@ defmodule TaxiBeWeb.TaxiAllocationJob do
 
   def init(request) do
     Process.send(self(), :part1, [:nosuspend])
-    {:ok, %{request: request, timer: nil, accepted: false}}
+    {:ok, %{request: request, timer: nil, accepted: false, accepted_at: nil, accepted_driver: nil}}
   end
 
   def handle_info(:part1,  %{request: request} = state) do
@@ -70,23 +70,27 @@ defmodule TaxiBeWeb.TaxiAllocationJob do
     {:noreply, state}
   end
 
-  def handle_cast({:process_accept, _driver_username}, state) do
-    #IO.inspect(request)
-    #IO.inspect(state)}
+  def handle_cast({:process_accept, driver_username}, state) do
     customer_username = state.request["username"]
 
     if state.accepted do
       {:noreply, state}
     else
-
-      %{timer: timer} = state
-
-      if timer != nil do
-        Process.cancel_timer(timer)
+      if state.timer != nil do
+        Process.cancel_timer(state.timer)
       end
 
-      TaxiBeWeb.Endpoint.broadcast("customer:"<>customer_username, "booking_request", %{msg: "Tu taxi llegará en  5 min"})
-      {:noreply, state |> Map.put(:accepted, true)}
+      TaxiBeWeb.Endpoint.broadcast(
+        "customer:" <> customer_username,
+        "booking_request",
+        %{msg: "Tu taxi #{driver_username} llegará en 5 min"}
+      )
+
+      {:noreply,
+       state
+       |> Map.put(:accepted, true)
+       |> Map.put(:accepted_at, DateTime.utc_now())
+       |> Map.put(:accepted_driver, driver_username)}
     end
   end
 
