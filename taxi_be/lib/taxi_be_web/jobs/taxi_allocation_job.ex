@@ -13,6 +13,10 @@ defmodule TaxiBeWeb.TaxiAllocationJob do
   end
 
   def handle_info(:part1, %{request: request} = state) do
+    IO.puts(">>> PART1 STARTED")
+    IO.inspect(request, label: "REQUEST")
+
+
     Process.sleep(1000)
 
     task = Task.async(fn -> candidate_taxis() end)
@@ -22,6 +26,7 @@ defmodule TaxiBeWeb.TaxiAllocationJob do
     # Computation of fare
     # TaxiBeWeb.Endpoint.broadcast("customer:"<>customer_username, "booking_request", %{msg: "Your ride is worth 80 pesitos"})
     # línea 20 — reemplazar el broadcast hardcodeado por:
+    IO.puts(">>> SENDING FARE TO CUSTOMER")
     request |> compute_ride_fare() |> notify_customer_ride_fare()
     taxis = Task.await(task)
 
@@ -56,6 +61,7 @@ defmodule TaxiBeWeb.TaxiAllocationJob do
     } = request
 
     Enum.each(taxis, fn taxi ->
+      IO.puts(">>> SENDING REQUEST TO driver:#{taxi.nickname}")
       TaxiBeWeb.Endpoint.broadcast(
         "driver:" <> taxi.nickname,
         "booking_request",

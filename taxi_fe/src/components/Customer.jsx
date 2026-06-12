@@ -9,44 +9,87 @@ function Customer(props) {
   let [dropOffAddress, setDropOffAddress] = useState("Triangulo Las Animas, Puebla, Mexico");
   let [msg, setMsg] = useState("");
   let [msg1, setMsg1] = useState("");
-  let [bookingId, setBookingId] = useState(null);
+  let [bookingId, setBookingId] = useState("");
 
   useEffect(() => {
     let channel = socket.channel("customer:" + props.username, {token: "123"});
-    channel.on("greetings", data => console.log(data));
+
     channel.on("booking_request", dataFromPush => {
-      console.log("Received", dataFromPush);
+      console.log("Customer received", dataFromPush);
       setMsg1(dataFromPush.msg);
     });
-    channel.join();
-  },[props]);
+
+    channel.join()
+      .receive("ok", resp => console.log("Joined customer channel", resp))
+      .receive("error", resp => console.log("Unable to join customer channel", resp));
+
+    return () => {
+      channel.leave();
+    };
+  }, [props.username]);
 
   let submit = () => {
     fetch(`http://localhost:4000/api/bookings`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({pickup_address: pickupAddress, dropoff_address: dropOffAddress, username: props.username})
-    }).then(resp => resp.json()).then(dataFromPOST => {
-      setBookingId(dataFromPOST.booking_id);  
-      setMsg(dataFromPOST.msg);
-    });
+      body: JSON.stringify({
+        pickup_address: pickupAddress,
+        dropoff_address: dropOffAddress,
+        username: props.username
+      })
+    })
+      .then(resp => {
+        const location = resp.headers.get("Location");
+
+        if (location) {
+          setBookingId(location.split("/").pop());
+        }
+
+        return resp.json();
+      })
+      .then(dataFromPOST => {
+        setMsg(dataFromPOST.msg);
+        setBookingId(dataFromPOST.booking_id);
+        console.log("Saved bookingId", dataFromPOST.booking_id);
+      });      
+
   };
 
-  let cancel = () => {
-  if(!bookingId){
-    alert("No active booking");
-    return;
-  }
 
-  fetch(
-    `http://localhost:4000/api/bookings/${bookingId}?action=cancel&username=${props.username}`,
-    {
-      method: "PUT"
-    }
-  )
-  .then(resp => resp.json())
-  .then(data => setMsg(data.msg));
-};
+
+  let cancel = () => {
+    console.log("CANCEL CLICKED");
+    console.log("bookingId =", bookingId);
+
+    if (!bookingId) return;
+
+    fetch(`http://localhost:4000/api/bookings/${bookingId}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        action: "cancel",
+        username: props.username
+      })
+    })
+      .then(resp => resp.json())
+      .then(dataFromPOST => {
+        console.log(dataFromPOST);
+        setMsg(dataFromPOST.msg);
+      });
+  };
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   return (
     <div style={{textAlign: "center", borderStyle: "solid"}}>
@@ -61,7 +104,11 @@ function Customer(props) {
             onChange={ev => setDropOffAddress(ev.target.value)}
             value={dropOffAddress}/>
         <Button onClick={submit} variant="outlined" color="primary">Submit</Button>
-        <Button onClick={cancel} variant="outlined" color="primary">Cancel</Button>
+
+        <Button onClick={cancel} variant="outlined" color="secondary">
+          Cancelar
+        </Button>
+
       </div>
       <div style={{backgroundColor: "lightcyan", height: "50px"}}>
         {msg}
