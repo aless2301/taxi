@@ -9,7 +9,9 @@ defmodule TaxiBeWeb.Router do
     pipe_through :api
 
     post "/bookings", BookingController, :create
+    post "/bookings/:id", BookingController, :update
     put "/bookings/:id", BookingController, :update
+
 
   end
 
