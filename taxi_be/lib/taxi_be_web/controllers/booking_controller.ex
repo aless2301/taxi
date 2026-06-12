@@ -23,12 +23,14 @@ defmodule TaxiBeWeb.BookingController do
     GenServer.cast(String.to_atom(id), {:process_accept, username})
     json(conn, %{msg: "We will process your acceptance"})
   end
-  def update(conn, %{"action" => "reject", "username" => username, "id" => _id}) do
+  def update(conn, %{"action" => "reject", "username" => username, "id" => id}) do
     IO.inspect("'#{username}' is rejecting a booking request")
+    GenServer.cast(String.to_atom(id), {:process_reject, username})
     json(conn, %{msg: "We will process your rejection"})
   end
-  def update(conn, %{"action" => "cancel", "username" => username, "id" => _id}) do
+  def update(conn, %{"action" => "cancel", "username" => username, "id" => id}) do
     IO.inspect("'#{username}' is cancelling a booking request")
+    GenServer.cast(String.to_atom(id), {:process_cancel, username})
     json(conn, %{msg: "We will process your cancelation"})
   end
 end
