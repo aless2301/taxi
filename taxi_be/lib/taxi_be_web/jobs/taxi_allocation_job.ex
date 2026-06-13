@@ -72,7 +72,7 @@ defmodule TaxiBeWeb.TaxiAllocationJob do
       )
     end)
 
-    # change after tests to 9000
+    # change after tests to 90000
     Process.send_after(self(), :timeout, 90000)
   end
 

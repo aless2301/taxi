@@ -41,10 +41,10 @@ function Driver(props) {
   return (
     <div style={{textAlign: "center", borderStyle: "solid"}}>
         Driver: {props.username}
-        <div style={{backgroundColor: "lavender", height: "100px"}}>
+        <div style={{backgroundColor: "lavender", minHeight: "180px", padding:"15px"}}>
           {
             visible ?
-            <Card variant="outlined" style={{margin: "auto", width: "600px"}}>
+            <Card variant="outlined" style={{margin: "10px auto", width: "600px"}}>
               <CardContent>
                 <Typography>
                 {message}
